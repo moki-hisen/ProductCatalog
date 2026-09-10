@@ -35,11 +35,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import androidx.compose.foundation.layout.Spacer
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import com.mk.productcatalog.data.model.Product
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,6 +119,10 @@ fun ProductListScreen(
                         products = uiState.products,
                         listState = listState,
                         isLoadingMore = uiState.isLoadingMore,
+                        isRefreshing = uiState.isRefreshing,
+                        error = uiState.error,
+                        onRefresh = viewModel::refreshProducts,
+                        onRetry = viewModel::loadMoreProducts,
                         onProductClick = onProductClick
                     )
                 }
@@ -158,41 +168,72 @@ private fun ProductList(
     products: List<Product>,
     listState: androidx.compose.foundation.lazy.LazyListState,
     isLoadingMore: Boolean,
+    isRefreshing: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onProductClick: (Int) -> Unit
 ) {
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            horizontal = 16.dp,
-            vertical = 8.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { onRefresh() }
     ) {
-        itemsIndexed(
-            items = products,
-            key = { _, product -> product.id }
-        ) { _, product ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                horizontal = 16.dp,
+                vertical = 8.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            itemsIndexed(
+                items = products,
+                key = { _, product -> product.id }
+            ) { _, product ->
 
-            ProductItem(
-                product = product,
-                onClick = {
-                    onProductClick(product.id)
+                ProductItem(
+                    product = product,
+                    onClick = {
+                        onProductClick(product.id)
+                    }
+                )
+            }
+
+            if (isLoadingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
-            )
-        }
+            }
 
-        if (isLoadingMore) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp)
-                    )
+            if (error != null && !isLoadingMore) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+
+                        Button(onClick = onRetry) {
+                            Text("Retry")
+                        }
+                    }
                 }
             }
         }
@@ -212,10 +253,35 @@ private fun ProductItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        AsyncImage(
+        SubcomposeAsyncImage(
             model = product.thumbnail,
             contentDescription = product.title,
-            modifier = Modifier.size(88.dp)
+            modifier = Modifier.size(88.dp),
+            contentScale = ContentScale.Crop,
+            loading = {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            error = {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Image\nerror",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            },
+            success = {
+                SubcomposeAsyncImageContent()
+            }
         )
 
         Column(

@@ -3,6 +3,7 @@ package com.mk.productcatalog
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.mk.productcatalog.ui.navigation.ProductCatalogApp
 import com.mk.productcatalog.ui.productlist.ProductListScreen
 
 class MainActivity : ComponentActivity() {
@@ -11,11 +12,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            ProductListScreen(
-                onProductClick = { productId ->
-                    // Detail navigation will be added later.
-                }
-            )
+            ProductCatalogApp()
         }
     }
 }

@@ -2,7 +2,6 @@ package com.mk.productcatalog.ui.productlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mk.productcatalog.data.model.Product
 import com.mk.productcatalog.data.remote.RetrofitInstance
 import com.mk.productcatalog.data.repository.ProductRepository
 import kotlinx.coroutines.Job
@@ -114,7 +113,47 @@ class ProductListViewModel : ViewModel() {
         }
     }
 
-    private fun searchProducts(query: String) {
+    fun refreshProducts() {
+        if (_uiState.value.isLoading || _uiState.value.isRefreshing) {
+            return
+        }
+
+        // Pull-to-refresh is only for the normal product list.
+        if (_uiState.value.searchQuery.isNotBlank()) {
+            return
+        }
+
+        currentSkip = 0
+
+        _uiState.value = _uiState.value.copy(
+            isRefreshing = true,
+            isLoadingMore = false,
+            error = null
+        )
+
+        viewModelScope.launch {
+            repository.getProducts(
+                limit = pageSize,
+                skip = 0
+            ).onSuccess { products ->
+                _uiState.value = _uiState.value.copy(
+                    products = products,
+                    isRefreshing = false,
+                    error = null,
+                    hasMore = products.size == pageSize
+                )
+
+                currentSkip = products.size
+            }.onFailure { exception ->
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    error = exception.message ?: "Failed to refresh products"
+                )
+            }
+        }
+    }
+
+    private suspend fun searchProducts(query: String) {
         currentSkip = 0
 
         _uiState.value = _uiState.value.copy(
@@ -125,24 +164,22 @@ class ProductListViewModel : ViewModel() {
             hasMore = false
         )
 
-        viewModelScope.launch {
-            repository.searchProducts(
-                query = query,
-                limit = pageSize,
-                skip = 0
-            ).onSuccess { products ->
-                _uiState.value = _uiState.value.copy(
-                    products = products,
-                    isLoading = false,
-                    error = null,
-                    hasMore = false
-                )
-            }.onFailure { exception ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = exception.message ?: "Failed to search products"
-                )
-            }
+        repository.searchProducts(
+            query = query,
+            limit = pageSize,
+            skip = 0
+        ).onSuccess { products ->
+            _uiState.value = _uiState.value.copy(
+                products = products,
+                isLoading = false,
+                error = null,
+                hasMore = false
+            )
+        }.onFailure { exception ->
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                error = exception.message ?: "Failed to search products"
+            )
         }
     }
 
@@ -152,7 +189,9 @@ class ProductListViewModel : ViewModel() {
         if (query.isBlank()) {
             loadProducts()
         } else {
-            searchProducts(query.trim())
+            viewModelScope.launch {
+                searchProducts(query.trim())
+            }
         }
     }
 }
