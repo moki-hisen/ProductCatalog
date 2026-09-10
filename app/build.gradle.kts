@@ -65,4 +65,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+
+    // Compose Material Icons
+    implementation(libs.androidx.compose.material.icons)
 }
