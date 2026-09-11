@@ -41,7 +41,7 @@ The app consumes the DummyJSON Products API and provides product browsing, pagin
 ## Architecture
 
 The project uses a simple two-layer structure:
-
+```text
 data/
 ├── model/
 ├── remote/
@@ -51,6 +51,7 @@ ui/
 ├── productlist/
 ├── productdetail/
 └── navigation/
+```
 
 ### Data Layer
 
